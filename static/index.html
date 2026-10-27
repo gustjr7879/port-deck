@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#070a14;
+  --glass:rgba(255,255,255,.055);
+  --glass-2:rgba(255,255,255,.085);
+  --glass-hi:rgba(255,255,255,.12);
+  --line:rgba(255,255,255,.10);
+  --line-2:rgba(255,255,255,.18);
+  --text:#eef1f8;
+  --muted:#9aa3b8;
+  --faint:#646d84;
+  --llm:#b69cff; --web:#3ee0c4; --api:#6cb4ff; --db:#ffc861; --mcp:#ff8fc8; --tcp:#9aa3b8;
+  --ok:#4ade80; --warn:#fbbf24; --bad:#ff6b7d;
+  --r:18px;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:"Pretendard Variable",Pretendard,"Segoe UI","Malgun Gothic",system-ui,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+/* 배경 오브 */
+.orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orbs i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:float 28s ease-in-out infinite alternate}
+.orbs i:nth-child(1){width:620px;height:620px;left:-160px;top:-180px;background:radial-gradient(circle,#6d4cff 0%,transparent 70%)}
+.orbs i:nth-child(2){width:540px;height:540px;right:-140px;top:120px;background:radial-gradient(circle,#00c2a8 0%,transparent 70%);animation-delay:-9s}
+.orbs i:nth-child(3){width:520px;height:520px;left:35%;bottom:-260px;background:radial-gradient(circle,#ff4f9a 0%,transparent 70%);opacity:.35;animation-delay:-17s}
+@keyframes float{to{transform:translate(60px,40px) scale(1.08)}}
+.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.glass{
+  background:linear-gradient(155deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  border:1px solid var(--line);
+  backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);
+  border-radius:var(--r);
+  box-shadow:0 10px 40px -12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.wrap{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:28px 24px 80px}
+
+/* 헤더 */
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#7c5cff,#00c2a8);box-shadow:0 6px 24px -6px #7c5cff}
+.logo svg{width:22px;height:22px}
+.brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--muted);font-size:12.5px}
+.scan-pill{display:flex;align-items:center;gap:10px;padding:8px 14px 8px 10px;border-radius:999px;font-size:12.5px;color:var(--muted)}
+.ring{width:22px;height:22px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .bg{stroke:rgba(255,255,255,.12)}
+.ring .fg{stroke:var(--web);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.scan-pill b{color:var(--text);font-weight:600}
+.btn{appearance:none;border:1px solid var(--line-2);background:var(--glass-2);color:var(--text);
+  font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:12px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:.15s;backdrop-filter:blur(10px);text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--glass-hi);border-color:rgba(255,255,255,.28)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn svg{width:15px;height:15px}
+.btn.ghost{background:transparent;border-color:var(--line)}
+.btn.danger{color:#ffb3bd;border-color:rgba(255,107,125,.35);background:rgba(255,107,125,.08)}
+.btn.danger:hover{background:rgba(255,107,125,.18);border-color:rgba(255,107,125,.6)}
+.btn.sm{padding:6px 10px;font-size:12.5px;border-radius:10px}
+.btn.icon{padding:7px}
+.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 통계 */
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.stat{padding:16px 18px}
+.stat .k{color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:7px}
+.stat .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:13px;color:var(--faint);font-weight:500;margin-left:4px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+
+/* LLM 스포트라이트 */
+.spot{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;margin-bottom:22px}
+.llm-card{padding:18px 20px;position:relative;overflow:hidden;border-color:rgba(182,156,255,.28)}
+.llm-card::before{content:"";position:absolute;inset:0;background:radial-gradient(500px 160px at 0% 0%,rgba(182,156,255,.18),transparent 70%);pointer-events:none}
+.llm-top{display:flex;align-items:center;gap:10px;position:relative}
+.llm-top h3{margin:0;font-size:16px}
+.model{font-family:var(--mono);font-size:20px;font-weight:600;margin:10px 0 6px;color:#ddd2ff;position:relative;word-break:break-all}
+.endpoint{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;background:rgba(0,0,0,.25);
+  border:1px solid var(--line);border-radius:10px;padding:7px 8px 7px 12px;position:relative}
+.endpoint span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfd6e6}
+.llm-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:12.5px;position:relative}
+.llm-meta b{color:var(--text);font-weight:600}
+.llm-actions{display:flex;gap:8px;margin-top:14px;position:relative}
+
+/* 툴바 */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;padding:0 14px;height:40px;border-radius:12px}
+.search svg{width:16px;height:16px;color:var(--faint)}
+.search input{flex:1;background:none;border:0;outline:0;color:var(--text);font:inherit}
+.search input::placeholder{color:var(--faint)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--glass);color:var(--muted);padding:7px 12px;border-radius:999px;
+  font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.chip:hover{color:var(--text)}
+.chip.on{color:var(--text);background:var(--glass-hi);border-color:var(--line-2)}
+.chip .n{font-variant-numeric:tabular-nums;color:var(--faint);font-weight:500}
+.toggle{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;cursor:pointer;user-select:none}
+.toggle input{display:none}
+.toggle .sw{width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;transition:.2s}
+.toggle .sw::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+.toggle input:checked+.sw{background:var(--web)}
+.toggle input:checked+.sw::after{left:17px}
+
+/* 프로젝트 그룹 */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.group{margin-bottom:26px}
+.group-h{display:flex;align-items:baseline;gap:10px;margin:0 4px 10px}
+.group-h h2{margin:0;font-size:15.5px;font-weight:700}
+.group-h .path{font-family:var(--mono);font-size:12px;color:var(--faint)}
+.group-h .cnt{margin-left:auto;font-size:12px;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{padding:16px;display:flex;flex-direction:column;gap:12px;transition:transform .2s,border-color .2s,background .2s;animation:rise .35s ease both}
+.card:hover{transform:translateY(-2px);border-color:var(--line-2)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+.card-top{display:flex;align-items:flex-start;gap:10px}
+.kind{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:7px;flex:none;
+  border:1px solid color-mix(in srgb,var(--c) 40%,transparent);color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.card-title{min-width:0;flex:1}
+.card-title h4{margin:0;font-size:14.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-title .sub{color:var(--faint);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ports{display:flex;gap:6px;flex-wrap:wrap}
+.port{font-family:var(--mono);font-size:19px;font-weight:600;letter-spacing:-.01em;padding:2px 10px;border-radius:10px;
+  background:rgba(0,0,0,.22);border:1px solid var(--line);display:inline-flex;align-items:center;gap:6px}
+.port .colon{color:var(--faint)}
+.port .exp{font-size:10px;font-weight:700;color:var(--warn);font-family:inherit;letter-spacing:.04em}
+.meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.meta b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.logline{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(74,222,128,.6);animation:pulse 1.6s infinite}
+.pulse.idle{background:var(--faint);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+.actions{display:flex;gap:7px;margin-top:auto}
+.actions .btn{flex:1;justify-content:center}
+.actions .btn.icon{flex:none}
+
+.others{padding:6px}
+.others table{width:100%;border-collapse:collapse;font-size:12.5px}
+.others td,.others th{padding:7px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.05)}
+.others th{color:var(--faint);font-weight:600;font-size:11.5px}
+.others td{color:var(--muted)}
+.others td.mono{font-family:var(--mono);color:var(--text)}
+
+aside .panel{padding:16px;position:sticky;top:20px}
+aside h3{margin:0 0 12px;font-size:13.5px;display:flex;align-items:center;gap:8px}
+.events{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow:auto}
+.events li{display:grid;grid-template-columns:10px 1fr;gap:10px;font-size:12.5px}
+.events li .dot{margin-top:6px}
+.events time{display:block;color:var(--faint);font-size:11.5px}
+.empty{color:var(--faint);font-size:12.5px;text-align:center;padding:30px 10px}
+.empty-big{padding:60px 20px;text-align:center;color:var(--muted)}
+
+/* 드로어 */
+.scrim{position:fixed;inset:0;background:rgba(3,5,12,.5);backdrop-filter:blur(4px);z-index:40;opacity:0;pointer-events:none;transition:.25s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:12px;right:12px;bottom:12px;width:min(860px,calc(100vw - 24px));z-index:50;
+  display:flex;flex-direction:column;transform:translateX(calc(100% + 24px));transition:transform .32s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(155deg,rgba(28,32,52,.86),rgba(14,17,30,.9));border-radius:22px}
+.drawer.on{transform:none}
+.d-head{padding:18px 20px 0;display:flex;align-items:flex-start;gap:12px}
+.d-head h2{margin:0;font-size:18px}
+.d-head .sub{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.tabs{display:flex;gap:4px;padding:14px 20px 0;border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:9px 12px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px}
+.tab.on{color:var(--text);border-color:var(--web)}
+.tab:disabled{opacity:.35;cursor:not-allowed}
+.d-body{flex:1;min-height:0;overflow:auto;padding:18px 20px}
+.d-body.flush{padding:0;display:flex;flex-direction:column}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:8px 16px;font-size:13px}
+.kv dt{color:var(--faint)}
+.kv dd{margin:0;word-break:break-all}
+.kv dd.mono{font-family:var(--mono);font-size:12.5px}
+.sec{margin-bottom:22px}
+.sec h4{margin:0 0 10px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.code{font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:12px 14px;white-space:pre-wrap;word-break:break-all;color:#cfd6e6}
+.mini-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.mini{padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.mini .k{font-size:11.5px;color:var(--faint)}
+.mini .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+
+.log-bar{display:flex;gap:8px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+select,.log-bar input[type=text]{background:rgba(0,0,0,.3);border:1px solid var(--line);color:var(--text);font:inherit;font-size:12.5px;border-radius:10px;padding:7px 10px;outline:0}
+select{max-width:340px}
+.log-bar input[type=text]{width:160px}
+.log-view{flex:1;min-height:0;overflow:auto;font-family:var(--mono);font-size:12px;line-height:1.6;padding:12px 0;background:rgba(0,0,0,.28)}
+.log-view .ln{padding:0 20px;white-space:pre-wrap;word-break:break-all;color:#c4cbdb}
+.log-view.nowrap .ln{white-space:pre;word-break:normal}
+.log-view .ln:hover{background:rgba(255,255,255,.04)}
+.ln.err{color:#ff9aa6;background:rgba(255,107,125,.06)}
+.ln.warn{color:#ffd88a}
+.ln.info .lv{color:#7dd3fc}
+.ln.dbg{color:#7f889e}
+.ln mark{background:rgba(62,224,196,.3);color:inherit;border-radius:3px}
+.log-foot{padding:8px 20px;font-size:11.5px;color:var(--faint);display:flex;gap:14px;border-top:1px solid var(--line)}
+.log-foot .live{color:var(--ok)}
+.preview{flex:1;display:flex;flex-direction:column;min-height:0}
+.preview .urlbar{display:flex;gap:8px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.preview .urlbar span{flex:1}
+.preview iframe{flex:1;border:0;background:#fff;border-radius:0 0 22px 22px}
+.notice{margin:20px;padding:18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:13px}
+
+/* 모달 */
+.modal{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;opacity:0;pointer-events:none;transition:.2s}
+.modal.on{opacity:1;pointer-events:auto}
+.modal .bx{width:min(460px,100%);padding:22px;background:linear-gradient(155deg,rgba(40,30,48,.9),rgba(18,16,28,.94));border-color:rgba(255,107,125,.3);transform:scale(.97);transition:.2s}
+.modal.on .bx{transform:none}
+.modal h3{margin:0 0 6px;font-size:17px}
+.modal p{margin:0 0 14px;color:var(--muted);font-size:13px}
+.modal ul{margin:0 0 18px;padding:10px 14px;list-style:none;font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.3);border-radius:10px;max-height:180px;overflow:auto}
+.modal .row{display:flex;gap:8px;justify-content:flex-end}
+
+.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{padding:10px 16px;border-radius:12px;font-size:13px;animation:rise .25s ease both;background:rgba(24,28,44,.92)}
+.toast.bad{border-color:rgba(255,107,125,.5)}
+
+@media (max-width:1100px){.layout{grid-template-columns:1fr}aside .panel{position:static}.stats{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:640px){.wrap{padding:18px 16px 60px}.stats{grid-template-columns:repeat(2,1fr)}.spot{grid-template-columns:1fr}.mini-tiles{grid-template-columns:repeat(2,1fr)}.kv{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+</style>
+</head>
+<body>
+<div class="orbs"><i></i><i></i><i></i></div>
+<div class="grain"></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01M11 7h6M11 17h6"/></svg></div>
+      <div><h1>Port Deck</h1><p>내 프로젝트가 띄운 포트 · LLM · 로그</p></div>
+    </div>
+    <div class="scan-pill glass" title="백그라운드 스캔 주기">
+      <svg class="ring" viewBox="0 0 24 24"><circle class="bg" cx="12" cy="12" r="9"/><circle class="fg" id="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55" stroke-dashoffset="0"/></svg>
+      <span id="scanText">스캔 대기 중…</span>
+    </div>
+    <button class="btn" id="refreshBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>지금 스캔</button>
+  </header>
+
+  <section class="stats" id="stats"></section>
+  <section class="spot" id="spot"></section>
+
+  <div class="toolbar">
+    <label class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="프로젝트, 앱, 포트, 모델 검색" autocomplete="off"></label>
+    <div class="chips" id="chips"></div>
+    <label class="toggle"><input type="checkbox" id="showOthers"><span class="sw"></span>제외된 포트 보기</label>
+  </div>
+
+  <div class="layout">
+    <main id="main"><div class="empty-big">첫 스캔 중…</div></main>
+    <aside><div class="panel glass"><h3><span class="dot" style="background:var(--web)"></span>변경 기록</h3><ul class="events" id="events"></ul></div></aside>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<section class="drawer glass" id="drawer" aria-hidden="true">
+  <div class="d-head">
+    <span class="kind" id="dKind"></span>
+    <div style="flex:1;min-width:0"><h2 id="dTitle"></h2><div class="sub" id="dSub"></div></div>
+    <a class="btn sm ghost" id="dOpen" target="_blank" rel="noopener">새 탭에서 열기</a>
+    <button class="btn sm danger" id="dKill">종료</button>
+    <button class="btn icon ghost" id="dClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" data-tab="overview">개요</button>
+    <button class="tab" data-tab="logs">로그 <span id="logBadge"></span></button>
+    <button class="tab" data-tab="preview">미리보기</button>
+  </nav>
+  <div class="d-body" id="dBody"></div>
+</section>
+
+<div class="modal" id="modal"><div class="bx glass">
+  <h3 id="mTitle">프로세스를 종료할까요?</h3>
+  <p id="mDesc"></p>
+  <ul id="mList"></ul>
+  <div class="row"><button class="btn ghost" id="mCancel">취소</button><button class="btn danger" id="mOk">종료</button></div>
+</div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const TOKEN = "__DECK_TOKEN__";
+const KINDS = {
+  llm:{label:"LLM",c:"var(--llm)"}, web:{label:"Web",c:"var(--web)"}, api:{label:"API",c:"var(--api)"},
+  db:{label:"DB",c:"var(--db)"}, mcp:{label:"MCP",c:"var(--mcp)"}, tcp:{label:"TCP",c:"var(--tcp)"}
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const api = (path, opt={}) => fetch(path, {...opt, headers:{"X-Deck-Token":TOKEN, "Content-Type":"application/json", ...(opt.headers||{})}})
+  .then(r => r.json().then(j => (r.ok ? j : Promise.reject(j))));
+
+let state = null, filter = "all", query = "", current = null, currentTab = "overview";
+let logTimer = null, procTimer = null, logState = {path:null, offset:null, lines:[]};
+
+const fmtBytes = b => b == null ? "–" : b < 1024**2 ? (b/1024).toFixed(0)+" KB" : b < 1024**3 ? (b/1024**2).toFixed(0)+" MB" : (b/1024**3).toFixed(2)+" GB";
+const ago = t => { if(!t) return "–"; const s = Math.max(0, Date.now()/1000 - t);
+  return s < 60 ? Math.floor(s)+"초" : s < 3600 ? Math.floor(s/60)+"분" : s < 86400 ? Math.floor(s/3600)+"시간 "+Math.floor(s%3600/60)+"분" : Math.floor(s/86400)+"일 "+Math.floor(s%86400/3600)+"시간"; };
+const clock = t => new Date(t*1000).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const kindBadge = k => `<span class="kind" style="--c:${KINDS[k]?.c}">${KINDS[k]?.label||k}</span>`;
+const svcUrl = s => s.http ? s.http.url.replace("[::1]","localhost").replace("127.0.0.1","localhost") : null;
+
+function toast(msg, bad){ const t = document.createElement("div"); t.className = "toast glass" + (bad ? " bad" : ""); t.textContent = msg;
+  $("#toasts").append(t); setTimeout(() => t.remove(), 3200); }
+
+/* ---------- 상태 로딩 ---------- */
+async function load(){
+  try { const prev = state?.scanned_at; state = await api("/api/state"); if(state.scanned_at !== prev) render(); else tick(); }
+  catch(e){ $("#scanText").textContent = "서버 연결 끊김"; }
+}
+
+function tick(){
+  if(!state?.scanned_at) return;
+  const iv = state.interval || 60, el = Date.now()/1000 - state.scanned_at, left = Math.max(0, Math.ceil(iv - el));
+  $("#ring").style.strokeDashoffset = 56.55 * Math.min(1, el/iv);
+  $("#scanText").innerHTML = `<b>${clock(state.scanned_at)}</b> 스캔 · 다음 ${left}s · ${state.duration_ms}ms`;
+}
+
+function matches(s){
+  if(filter !== "all" && s.kind !== filter) return false;
+  if(!query) return true;
+  const hay = [s.project, s.project_rel, s.app, s.name, s.kind, s.http?.title, ...(s.llm_models||[]), ...s.models.map(m=>m.label), ...s.ports.map(p=>p.port)].join(" ").toLowerCase();
+  return query.split(/\s+/).every(w => hay.includes(w));
+}
+
+function render(){
+  const S = state.services;
+  const cnt = k => S.filter(s => s.kind === k).length;
+  const exposed = S.filter(s => s.exposed).length;
+  const logging = S.filter(s => s.logs.some(l => l.active)).length;
+  $("#stats").innerHTML = [
+    ["실행 중 서비스", S.length, `포트 ${S.reduce((a,s)=>a+s.ports.length,0)}개`, "var(--web)"],
+    ["LLM", cnt("llm"), S.filter(s=>s.kind==="llm").flatMap(s=>s.llm_models||s.models.map(m=>m.label)).length+"개 모델", "var(--llm)"],
+    ["웹 / API", cnt("web")+cnt("api"), "", "var(--api)"],
+    ["로그 기록 중", logging, `최근 2분`, "var(--ok)"],
+    ["외부 노출", exposed, "0.0.0.0 바인딩", exposed ? "var(--warn)" : "var(--faint)"],
+  ].map(([k,v,sub,c]) => `<div class="stat glass"><div class="k"><span class="dot" style="background:${c}"></span>${k}</div><div class="v">${v}<small>${sub}</small></div></div>`).join("");
+
+  $("#spot").innerHTML = S.filter(s => s.kind === "llm").map(s => {
+    const models = (s.llm_models?.length ? s.llm_models : s.models.map(m=>m.label));
+    const ep = s.llm_endpoint || (s.http?.url) || `127.0.0.1:${s.ports[0].port}`;
+    const active = s.logs.some(l=>l.active);
+    return `<div class="llm-card glass">
+      <div class="llm-top">${kindBadge("llm")}<h3>${esc(s.app)}</h3><span style="margin-left:auto;color:var(--muted);font-size:12px">${esc(s.project_rel||s.project)}</span></div>
+      <div class="model">${esc(models.join(", ") || "모델 정보 없음")}</div>
+      <div class="endpoint"><span>${esc(ep)}</span><button class="btn sm ghost" data-copy="${esc(ep)}">복사</button></div>
+      <div class="llm-meta"><span>API <b>${esc(s.llm_api==="openai"?"OpenAI 호환":s.llm_api==="ollama"?"Ollama":"미확인")}</b></span>
+        <span>메모리 <b>${fmtBytes(s.mem)}</b></span><span>가동 <b>${ago(s.started)}</b></span>
+        <span class="logline"><span class="pulse ${active?"":"idle"}"></span>${active?"로그 기록 중":"로그 "+s.logs.length+"개"}</span></div>
+      <div class="llm-actions"><button class="btn sm" data-open="${s.pid}" data-tab="logs">로그 보기</button><button class="btn sm ghost" data-open="${s.pid}">상세</button><button class="btn sm danger" data-kill="${s.pid}">종료</button></div>
+    </div>`;
+  }).join("");
+
+  const counts = {all:S.length}; for(const k in KINDS) counts[k] = cnt(k);
+  $("#chips").innerHTML = ["all", ...Object.keys(KINDS).filter(k => counts[k])].map(k =>
+    `<button class="chip ${filter===k?"on":""}" data-filter="${k}">${k==="all"?"전체":KINDS[k].label} <span class="n">${counts[k]}</span></button>`).join("");
+
+  const shown = S.filter(matches), groups = {};
+  shown.forEach(s => (groups[s.project_path] ??= []).push(s));
+  let html = Object.values(groups).map(list => `
+    <section class="group">
+      <div class="group-h"><h2>${esc(list[0].project)}</h2><span class="path">${esc(list[0].project_rel||list[0].project_path)}</span><span class="cnt">${list.length}개 서비스</span></div>
+      <div class="grid">${list.map(card).join("")}</div>
+    </section>`).join("");
+  if(!S.length) html = `<div class="empty-big glass">프로젝트 폴더에서 실행 중인 서비스가 없어요.<br><span style="color:var(--faint);font-size:12.5px">config.json의 project_roots에 경로를 추가할 수 있습니다.</span></div>`;
+  else if(!shown.length) html = `<div class="empty-big">조건에 맞는 서비스가 없어요.</div>`;
+  if($("#showOthers").checked && state.others.length){
+    html += `<section class="group"><div class="group-h"><h2>제외된 포트</h2><span class="path">시스템 · 설치된 앱 · 에디터</span><span class="cnt">${state.others.length}개</span></div>
+      <div class="others glass"><table><tr><th>포트</th><th>프로세스</th><th>PID</th><th>주소</th></tr>
+      ${state.others.map(o => `<tr><td class="mono">${o.ports.map(p=>p.port).join(", ")}</td><td>${esc(o.name)}</td><td>${o.pid}</td><td>${esc([...new Set(o.ports.flatMap(p=>p.addrs))].join(" "))}</td></tr>`).join("")}
+      </table></div></section>`;
+  }
+  $("#main").innerHTML = html;
+
+  $("#events").innerHTML = state.events.length ? state.events.map(e =>
+    `<li><span class="dot" style="background:${e.type==="up"?"var(--ok)":"var(--bad)"}"></span><div>${esc(e.text)}<time>${clock(e.t)}</time></div></li>`).join("")
+    : `<li class="empty" style="display:block">대시보드가 켜진 뒤로 변경된 게 없어요</li>`;
+  tick();
+
+  if(current){ const s = S.find(x => x.pid === current.pid); if(s){ current = s; } else { $("#dSub").textContent += "  ·  종료됨"; } }
+}
+
+function card(s){
+  const active = s.logs.some(l => l.active);
+  const sub = s.kind === "llm" ? (s.llm_models?.join(", ") || s.models.map(m=>m.label).join(", "))
+            : s.http?.title || s.kind_label || s.name;
+  const url = svcUrl(s);
+  return `<article class="card glass">
+    <div class="card-top">${kindBadge(s.kind)}<div class="card-title"><h4 title="${esc(s.cmdline.join(" "))}">${esc(s.app)}</h4><div class="sub">${esc(sub)}</div></div></div>
+    <div class="ports">${s.ports.map(p => `<span class="port"><span class="colon">:</span>${p.port}${p.addrs.some(a=>a==="0.0.0.0"||a==="::")?'<span class="exp" title="모든 네트워크 인터페이스에 열려 있음">외부</span>':""}</span>`).join("")}</div>
+    <div class="meta"><span>PID <b>${s.pid}</b></span><span>메모리 <b>${fmtBytes(s.mem)}</b></span><span>CPU <b>${s.cpu==null?"–":s.cpu.toFixed(1)+"%"}</b></span><span>가동 <b>${ago(s.started)}</b></span></div>
+    <div class="logline"><span class="pulse ${active?"":"idle"}"></span>${s.logs.length ? (active ? "로그 기록 중" : `로그 파일 ${s.logs.length}개`) : "감지된 로그 없음"}</div>
+    <div class="actions">
+      ${url ? `<a class="btn sm ghost" href="${esc(url)}" target="_blank" rel="noopener">열기</a>` : ""}
+      <button class="btn sm" data-open="${s.pid}">상세</button>
+      <button class="btn sm icon danger" data-kill="${s.pid}" title="종료" aria-label="종료"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></svg></button>
+    </div>
+  </article>`;
+}
+
+/* ---------- 상세 드로어 ---------- */
+function openDetail(pid, tab="overview"){
+  current = state.services.find(s => s.pid === pid); if(!current) return;
+  const s = current, url = svcUrl(s);
+  $("#dKind").outerHTML = kindBadge(s.kind).replace('class="kind"','class="kind" id="dKind"');
+  $("#dTitle").textContent = s.app;
+  $("#dSub").textContent = `${s.project_rel||s.project}  ·  PID ${s.pid}  ·  :${s.ports.map(p=>p.port).join(", :")}`;
+  $("#dOpen").style.display = url ? "" : "none"; if(url) $("#dOpen").href = url;
+  $("#logBadge").textContent = s.logs.length ? `(${s.logs.length})` : "";
+  document.querySelector('[data-tab="preview"]').disabled = !s.http?.html;
+  logState = {path: s.logs[0]?.path || null, offset:null, lines:[]};
+  $("#drawer").classList.add("on"); $("#scrim").classList.add("on"); $("#drawer").setAttribute("aria-hidden","false");
+  showTab(tab === "preview" && !s.http?.html ? "overview" : tab);
+}
+function closeDetail(){
+  $("#drawer").classList.remove("on"); $("#scrim").classList.remove("on"); $("#drawer").setAttribute("aria-hidden","true");
+  clearInterval(logTimer); clearInterval(procTimer); current = null;
+  setTimeout(() => { if(!current) $("#dBody").innerHTML = ""; }, 350);
+}
+function showTab(t){
+  currentTab = t; clearInterval(logTimer); clearInterval(procTimer);
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  const body = $("#dBody"); body.classList.toggle("flush", t !== "overview");
+  if(t === "overview") renderOverview();
+  if(t === "logs") renderLogs();
+  if(t === "preview") renderPreview();
+}
+
+function renderOverview(){
+  const s = current;
+  $("#dBody").innerHTML = `
+    <div class="mini-tiles">
+      <div class="mini"><div class="k">CPU</div><div class="v" id="pCpu">${s.cpu==null?"–":s.cpu.toFixed(1)+"%"}</div></div>
+      <div class="mini"><div class="k">메모리</div><div class="v" id="pMem">${fmtBytes(s.mem)}</div></div>
+      <div class="mini"><div class="k">스레드</div><div class="v" id="pThr">–</div></div>
+      <div class="mini"><div class="k">활성 연결</div><div class="v" id="pConn">–</div></div>
+    </div>
+    ${s.kind==="llm" ? `<div class="sec"><h4>LLM</h4><dl class="kv">
+        <dt>모델</dt><dd class="mono">${esc((s.llm_models||[]).join(", ") || "–")}</dd>
+        <dt>엔드포인트</dt><dd class="mono">${esc(s.llm_endpoint || "–")}</dd>
+        <dt>API 형식</dt><dd>${esc(s.llm_api==="openai"?"OpenAI 호환 (/v1/models 응답)":s.llm_api==="ollama"?"Ollama (/api/tags 응답)":"확인 안 됨")}</dd>
+        ${s.models.map(m => `<dt>모델 파일</dt><dd class="mono">${esc(m.path)}</dd>`).join("")}
+      </dl></div>` : ""}
+    <div class="sec"><h4>프로세스</h4><dl class="kv">
+      <dt>프로젝트</dt><dd class="mono">${esc(s.project_path)}</dd>
+      <dt>작업 폴더</dt><dd class="mono">${esc(s.cwd || "–")}</dd>
+      <dt>실행 파일</dt><dd class="mono">${esc(s.exe || s.name)}</dd>
+      <dt>시작</dt><dd>${s.started ? new Date(s.started*1000).toLocaleString("ko-KR") + " (" + ago(s.started) + " 전)" : "–"}</dd>
+      <dt>부모</dt><dd id="pParent">–</dd>
+      <dt>상태</dt><dd id="pStatus">–</dd>
+    </dl></div>
+    <div class="sec"><h4>명령줄</h4><div class="code">${esc(s.cmdline.join(" "))}</div></div>
+    <div class="sec"><h4>포트</h4><dl class="kv">${s.ports.map(p => `<dt class="mono">:${p.port}</dt><dd>${esc(p.addrs.join(", "))}${p.http ? ` · HTTP ${p.http.status} · ${esc(p.http.content_type||"")}${p.http.server ? " · " + esc(p.http.server) : ""}` : ""}</dd>`).join("")}</dl></div>
+    <div class="sec"><h4>자식 프로세스</h4><div id="pKids" class="code">불러오는 중…</div></div>`;
+  const refresh = async () => {
+    try {
+      const d = await api("/api/proc?pid=" + s.pid);
+      $("#pCpu").textContent = d.cpu.toFixed(1) + "%"; $("#pMem").textContent = fmtBytes(d.mem);
+      $("#pThr").textContent = d.threads; $("#pConn").textContent = d.established;
+      $("#pParent").textContent = `${d.parent || "?"} (${d.ppid})`; $("#pStatus").textContent = d.status;
+      $("#pKids").textContent = d.children.length ? d.children.map(c => `${c.pid}\t${c.name}\t${fmtBytes(c.mem)}`).join("\n") : "없음";
+    } catch(e){ $("#pStatus").textContent = "프로세스를 찾을 수 없음"; clearInterval(procTimer); }
+  };
+  refresh(); procTimer = setInterval(refresh, 3000);
+}
+
+function renderLogs(){
+  const s = current;
+  if(!s.logs.length){
+    $("#dBody").innerHTML = `<div class="notice"><b style="color:var(--text)">감지된 로그 파일이 없어요.</b><br><br>
+      이 프로세스는 출력을 콘솔(터미널)에 바로 쓰고 있는 것 같아요. 다른 프로그램의 콘솔 출력은 외부에서 읽을 수 없어서,
+      로그를 보려면 파일로 남기도록 실행해야 해요.<br><br>
+      <div class="code">${esc(s.cmdline.join(" "))} &gt; ${esc(s.app.replace(/\W+/g,"_"))}.out.log 2&gt;&amp;1</div><br>
+      프로젝트 폴더나 <code>logs/</code> 폴더에 앱 이름이 들어간 <code>.log</code> 파일이 있으면 자동으로 찾아요.</div>`;
+    return;
+  }
+  $("#dBody").innerHTML = `
+    <div class="log-bar">
+      <select id="logSel">${s.logs.map(l => `<option value="${esc(l.path)}" ${l.path===logState.path?"selected":""}>${l.active?"● ":""}${esc(l.path.split(/[\\/]/).pop())} · ${esc(l.source)}</option>`).join("")}</select>
+      <input type="text" id="logFilter" placeholder="필터 (예: error)">
+      <label class="toggle"><input type="checkbox" id="logFollow" checked><span class="sw"></span>따라가기</label>
+      <label class="toggle"><input type="checkbox" id="logWrap" checked><span class="sw"></span>줄바꿈</label>
+      <button class="btn sm ghost" id="logClear" style="margin-left:auto">화면 비우기</button>
+    </div>
+    <div class="log-view" id="logView"></div>
+    <div class="log-foot"><span id="logPath"></span><span id="logInfo" style="margin-left:auto"></span></div>`;
+  $("#logSel").onchange = e => { logState = {path:e.target.value, offset:null, lines:[]}; $("#logView").innerHTML = ""; pollLog(); };
+  $("#logFilter").oninput = drawLog;
+  $("#logWrap").onchange = e => $("#logView").classList.toggle("nowrap", !e.target.checked);
+  $("#logClear").onclick = () => { logState.lines = []; drawLog(); };
+  pollLog(); logTimer = setInterval(pollLog, 2000);
+}
+
+async function pollLog(){
+  if(!current || !logState.path) return;
+  try {
+    const d = await api(`/api/log?pid=${current.pid}&path=${encodeURIComponent(logState.path)}&offset=${logState.offset ?? ""}`);
+    if(d.reset) logState.lines = [];
+    const fresh = logState.offset == null;
+    logState.offset = d.offset;
+    if(d.text){
+      const parts = d.text.split(/\r?\n/);
+      if(!fresh && logState.lines.length && logState.partial){ logState.lines[logState.lines.length-1] += parts.shift(); }
+      logState.partial = !d.text.endsWith("\n");
+      logState.lines.push(...parts.filter((l,i) => l || i < parts.length-1));
+      if(logState.lines.length > 5000) logState.lines = logState.lines.slice(-5000);
+      drawLog();
+    } else if(fresh) drawLog();
+    $("#logPath").textContent = logState.path;
+    $("#logInfo").innerHTML = `${fmtBytes(d.size)} · <span class="live">● 2초마다 갱신</span>`;
+  } catch(e){ $("#logInfo").textContent = "읽기 실패: " + (e.error || "알 수 없음"); }
+}
+
+function drawLog(){
+  const v = $("#logView"); if(!v) return;
+  const f = ($("#logFilter")?.value || "").toLowerCase();
+  const rx = f ? new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"), "gi") : null;
+  const lines = f ? logState.lines.filter(l => l.toLowerCase().includes(f)) : logState.lines;
+  const nearBottom = v.scrollHeight - v.scrollTop - v.clientHeight < 60;
+  v.innerHTML = lines.length ? lines.slice(-3000).map(l => {
+    const cls = /\b(ERROR|CRITICAL|FATAL|Traceback|Exception)\b/i.test(l) ? "err" : /\bWARN(ING)?\b/i.test(l) ? "warn" : /\bDEBUG\b/.test(l) ? "dbg" : /\bINFO\b/.test(l) ? "info" : "";
+    let h = esc(l).replace(/\b(INFO|WARNING|WARN|ERROR|DEBUG|CRITICAL)\b/, '<span class="lv">$1</span>');
+    if(rx) h = h.replace(rx, m => `<mark>${m}</mark>`);
+    return `<div class="ln ${cls}">${h || " "}</div>`;
+  }).join("") : `<div class="ln" style="color:var(--faint)">${f ? "필터와 일치하는 줄이 없어요" : "아직 내용이 없어요"}</div>`;
+  if($("#logFollow")?.checked || nearBottom) v.scrollTop = v.scrollHeight;
+}
+
+function renderPreview(){
+  const s = current, url = svcUrl(s);
+  if(!s.http?.frameable){
+    $("#dBody").innerHTML = `<div class="notice">이 앱은 보안 헤더(X-Frame-Options / CSP frame-ancestors)로 다른 페이지 안에 표시되는 걸 막고 있어요.<br><br><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">새 탭에서 열기</a></div>`;
+    return;
+  }
+  $("#dBody").innerHTML = `<div class="preview"><div class="urlbar"><span>${esc(url)}</span><button class="btn sm ghost" id="pvReload">새로고침</button></div><iframe id="pv" src="${esc(url)}" title="미리보기"></iframe></div>`;
+  $("#pvReload").onclick = () => { $("#pv").src = url; };
+}
+
+/* ---------- 종료 ---------- */
+let killTarget = null;
+async function askKill(pid){
+  const s = state.services.find(x => x.pid === pid); if(!s) return;
+  killTarget = s;
+  $("#mTitle").textContent = `${s.app} 을(를) 종료할까요?`;
+  $("#mDesc").innerHTML = `<b style="color:var(--text)">${esc(s.project)}</b> · :${s.ports.map(p=>p.port).join(", :")} — 아래 프로세스 트리가 <b style="color:var(--text)">강제 종료</b>돼요. Windows에는 콘솔 앱에 정상 종료 신호를 보낼 공통 방법이 없어서, 저장 안 된 작업은 사라질 수 있어요.`;
+  $("#mList").innerHTML = `<li>${s.pid}  ${esc(s.name)}</li><li style="color:var(--faint)">자식 프로세스 확인 중…</li>`;
+  $("#modal").classList.add("on"); $("#mOk").disabled = false; $("#mOk").textContent = "종료";
+  try {
+    const d = await api("/api/proc?pid=" + pid);
+    $("#mList").innerHTML = `<li>${s.pid}  ${esc(s.name)}</li>` + d.children.map(c => `<li>└ ${c.pid}  ${esc(c.name)}</li>`).join("");
+  } catch(e){}
+}
+async function doKill(){
+  const s = killTarget; if(!s) return;
+  $("#mOk").disabled = true; $("#mOk").textContent = "종료 중…";
+  try {
+    const r = await api("/api/kill", {method:"POST", body: JSON.stringify({pid:s.pid})});
+    if(r.ok){ toast(`${s.app} 종료됨 (${r.killed.length}개 프로세스)`); if(current?.pid === s.pid) closeDetail(); }
+    else toast(r.error || `일부 프로세스가 남아있어요: ${r.alive?.join(", ")}`, true);
+  } catch(e){ toast(e.error || "종료 실패", true); }
+  $("#modal").classList.remove("on"); killTarget = null;
+  setTimeout(load, 800); setTimeout(load, 2500);
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-open],[data-kill],[data-filter],[data-copy],[data-tab]");
+  if(!t) return;
+  if(t.dataset.copy != null){ navigator.clipboard.writeText(t.dataset.copy).then(() => toast("엔드포인트 복사됨")); return; }
+  if(t.dataset.open){ openDetail(+t.dataset.open, t.dataset.tab || "overview"); return; }
+  if(t.dataset.kill){ askKill(+t.dataset.kill); return; }
+  if(t.dataset.filter){ filter = t.dataset.filter; render(); return; }
+  if(t.classList.contains("tab") && !t.disabled) showTab(t.dataset.tab);
+});
+$("#dClose").onclick = closeDetail; $("#scrim").onclick = closeDetail;
+$("#dKill").onclick = () => current && askKill(current.pid);
+$("#mCancel").onclick = () => { $("#modal").classList.remove("on"); killTarget = null; };
+$("#mOk").onclick = doKill;
+$("#q").oninput = e => { query = e.target.value.trim().toLowerCase(); render(); };
+$("#showOthers").onchange = render;
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){ if($("#modal").classList.contains("on")) $("#mCancel").click(); else if(current) closeDetail(); }
+  if(e.key === "/" && document.activeElement.tagName !== "INPUT"){ e.preventDefault(); $("#q").focus(); }
+});
+$("#refreshBtn").onclick = async () => {
+  const b = $("#refreshBtn"), before = state?.scanned_at; b.classList.add("spin"); b.disabled = true;
+  await api("/api/refresh", {method:"POST", body:"{}"}).catch(() => {});
+  for(let i = 0; i < 20; i++){ await new Promise(r => setTimeout(r, 500)); await load(); if(state?.scanned_at !== before) break; }
+  b.classList.remove("spin"); b.disabled = false;
+};
+
+load();
+setInterval(load, 5000);   // 서버 캐시만 읽음 (스캔은 서버가 주기적으로)
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

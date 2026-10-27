@@ -1,0 +1,33 @@
+{
+  "host": "127.0.0.1",
+  "port": 7070,
+  "scan_interval_sec": 60,
+
+  "project_roots": [
+    "~/Desktop",
+    "~/Documents",
+    "~/source",
+    "~/projects",
+    "~/dev",
+    "~/workspace",
+    "~/repos",
+    "~/code"
+  ],
+
+  "exclude_paths": [
+    "~/AppData/Local/Programs",
+    "~/AppData/Roaming",
+    "C:/Program Files",
+    "C:/Program Files (x86)",
+    "C:/Windows"
+  ],
+
+  "exclude_process_names": [
+    "Code.exe", "Cursor.exe", "Windsurf.exe", "chrome.exe", "msedge.exe", "firefox.exe",
+    "explorer.exe", "Teams.exe", "ms-teams.exe", "slack.exe", "Discord.exe", "KakaoTalk.exe",
+    "Notion.exe", "Figma.exe", "Docker Desktop.exe", "claude.exe", "Claude.exe"
+  ],
+
+  "log_recent_days": 7,
+  "log_active_window_sec": 120
+}
