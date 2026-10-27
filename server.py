@@ -17,7 +17,11 @@ from urllib.parse import parse_qs, urlparse
 
 import psutil
 
+import metrics
+from gpu import GpuMonitor
+
 BASE = Path(__file__).resolve().parent
+NCPU = psutil.cpu_count() or 1
 HOME = Path.home()
 SELF_PID = os.getpid()
 TOKEN = secrets.token_hex(16)
@@ -331,7 +335,7 @@ class Scanner:
                 cwd = attr(p.cwd, "")
                 ctime = attr(p.create_time, None)
                 mem = attr(lambda: p.memory_info().rss, None)
-                cpu = attr(lambda: p.cpu_percent(None), None)
+                cpu = attr(lambda: p.cpu_percent(None) / NCPU, None)  # 작업 관리자처럼 전체 코어 대비 %
 
             port_list = [{"port": port, "addrs": sorted(addrs)} for port, addrs in sorted(ports.items())]
             cands = entry_path(cmd, cwd) + ([cwd] if cwd else []) + ([exe] if exe else [])
@@ -452,7 +456,7 @@ class Scanner:
         # 스캔용 캐시 객체와 분리해야 스캔의 CPU 평균이 흐트러지지 않는다
         try:
             p = psutil.Process(pid)
-            cpu = p.cpu_percent(interval=0.3)
+            cpu = p.cpu_percent(interval=0.3) / NCPU
             with p.oneshot():
                 d = {"pid": pid, "status": p.status(), "threads": p.num_threads(), "mem": p.memory_info().rss,
                      "ppid": p.ppid(), "cpu": cpu}
@@ -547,6 +551,27 @@ class Scanner:
 
 
 SCANNER = Scanner()
+SAMPLER = None  # main() 에서 생성 (데모 모드면 DemoSampler)
+
+RANGES = {"15m": 900, "1h": 3600, "6h": 21600, "24h": 86400, "7d": 604800}
+
+
+def services_with_live():
+    snap = SCANNER.snapshot()
+    out = []
+    for s in snap["services"]:
+        s = dict(s)
+        s["key"] = metrics.service_key(s)
+        s["live"] = SAMPLER.latest.get(s["key"])
+        s["proxy"] = SAMPLER.proxies.info(s["key"])
+        out.append(s)
+    return {**snap, "services": out, "system": SAMPLER.system,
+            "gpu": SAMPLER.gpu_info["adapters"] if SAMPLER.gpu_info else None,
+            "metrics_interval": SAMPLER.interval}
+
+
+def find_service(key):
+    return next((s for s in SCANNER.snapshot()["services"] if metrics.service_key(s) == key), None)
 
 
 # ----------------------------------------------------------------- http
@@ -597,10 +622,33 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if u.path == "/metrics":  # Prometheus 수집용 (읽기 전용, 토큰 불필요 / Host 검사는 적용)
+            body = SAMPLER.prometheus(SCANNER.snapshot()["services"]).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if not self.authorized():
             return self.send_json({"error": "unauthorized"}, 403)
         if u.path == "/api/state":
-            return self.send_json(SCANNER.snapshot())
+            return self.send_json(services_with_live())
+        if u.path in ("/api/metrics/series", "/api/metrics/overview", "/api/llm"):
+            rng = RANGES.get(q.get("range", "1h"))
+            if rng is None:
+                raise BadRequest("invalid range")
+            if u.path == "/api/metrics/series":
+                return self.send_json(SAMPLER.series(q.get("key", "_system"), rng))
+            if u.path == "/api/llm":
+                return self.send_json(SAMPLER.llm(q.get("key", ""), rng))
+            # 개요: 시스템 전체 + 서비스별 스파크라인
+            out = SAMPLER.series("_system", rng, ("cpu", "mem", "mem_pct", "gpu", "gpu_mem"))
+            out["services"] = {}
+            for s in SCANNER.snapshot()["services"]:
+                k = metrics.service_key(s)
+                out["services"][k] = SAMPLER.series(k, rng, ("cpu", "mem", "gpu"))["metrics"]
+            return self.send_json(out)
         if u.path == "/api/proc":
             d = SCANNER.proc_detail(to_int(q.get("pid"), "pid"))
             return self.send_json(d if d else {"error": "not found"}, 200 if d else 404)
@@ -634,6 +682,24 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if u.path == "/api/kill":
                 return self.send_json(SCANNER.kill(to_int(data.get("pid"), "pid")))
+            if u.path in ("/api/llm/probe", "/api/llm/proxy"):
+                key = str(data.get("key", ""))
+                s = find_service(key)
+                if not s or s["kind"] != "llm":
+                    return self.send_json({"ok": False, "error": "LLM 서비스를 찾을 수 없어요."}, 404)
+                if u.path == "/api/llm/probe":
+                    if not s.get("llm_endpoint") or not s.get("llm_models"):
+                        return self.send_json({"ok": False, "error": "모델 목록 API(/v1/models, /api/tags)가 응답하지 않아 측정할 수 없어요."})
+                    r = SAMPLER.probe(key, s)
+                    return self.send_json({"ok": not r.get("error"), "result": r, "error": r.get("error")})
+                if data.get("enable"):
+                    try:
+                        info = SAMPLER.proxies.start(key, s["ports"][0]["port"])
+                    except OSError as e:
+                        return self.send_json({"ok": False, "error": f"프록시 포트를 열 수 없어요: {e}"})
+                    return self.send_json({"ok": True, "proxy": info})
+                SAMPLER.proxies.stop(key)
+                return self.send_json({"ok": True, "proxy": None})
         except BadRequest as e:
             return self.send_json({"error": str(e)}, 400)
         self.send_json({"error": "not found"}, 404)
@@ -657,12 +723,16 @@ ALLOWED_HOSTS = {f"127.0.0.1:{CFG['port']}", f"localhost:{CFG['port']}"}
 
 
 def main():
-    global SCANNER
+    global SCANNER, SAMPLER
     if "--demo" in sys.argv:
-        from demo import DemoScanner
+        from demo import DemoSampler, DemoScanner
         SCANNER = DemoScanner(CFG["scan_interval_sec"])
+        SAMPLER = DemoSampler(CFG, BASE)
         print("DEMO MODE: 샘플 데이터를 보여줍니다")
+    else:
+        SAMPLER = metrics.Sampler(CFG, BASE, lambda: SCANNER.snapshot()["services"], GpuMonitor())
     threading.Thread(target=SCANNER.loop, daemon=True).start()
+    threading.Thread(target=SAMPLER.loop, daemon=True).start()
     srv = ThreadingHTTPServer((CFG["host"], CFG["port"]), Handler)
     print(f"Port Deck  ->  http://{CFG['host']}:{CFG['port']}  (scan every {CFG['scan_interval_sec']}s)")
     try:

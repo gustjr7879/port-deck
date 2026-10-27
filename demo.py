@@ -130,6 +130,131 @@ class DemoScanner:
         return {"ok": False, "error": "데모 모드에서는 종료할 수 없어요."}
 
 
+class _DemoProxies:
+    def __init__(self):
+        self.running = {"rag-assistant/llama-server": {"listen": 18080, "upstream": 8080}}
+
+    def info(self, key):
+        return self.running.get(key)
+
+    def start(self, key, upstream_port, *a, **k):
+        self.running[key] = {"listen": upstream_port + 10000, "upstream": upstream_port}
+        return self.running[key]
+
+    def stop(self, key):
+        self.running.pop(key, None)
+
+
+class DemoSampler:
+    """metrics.Sampler 의 데모판: 24시간치 가짜 시계열과 LLM 요청 기록을 만들어 둔다."""
+
+    def __new__(cls, cfg, base):
+        import math
+        import os
+
+        import metrics
+
+        class _Demo(metrics.Sampler):
+            def __init__(self):
+                path = base / "data" / "demo.db"
+                for suffix in ("", "-wal", "-shm"):
+                    try:
+                        os.remove(str(path) + suffix)
+                    except OSError:
+                        pass
+                self.cfg, self.interval = cfg, cfg.get("metrics_interval_sec", 15)
+                self.store = metrics.Store(path)
+                self.proxies = _DemoProxies()
+                self.prom_prev, self.last_probe = {}, {}
+                self.gpu_info = {"adapters": [{"name": "NVIDIA GeForce RTX 4070 (demo)", "util": 0, "mem_dedicated": 0,
+                                               "mem_shared": 0, "engines": {"Compute": 0, "3D": 0}}]}
+                self.latest, self.system = {}, {}
+                self.rng = random.Random(7)
+                self._backfill()
+
+            def _values(self, s, t):
+                r, ph = self.rng, (t / 3600) * 2 * math.pi
+                busy = 0.5 + 0.5 * math.sin(ph / 3 + s["pid"] % 7)
+                base_cpu = {"llm": 22, "api": 3, "web": 1, "db": 1.5, "mcp": 0.5}.get(s["kind"], 1)
+                cpu = max(0, base_cpu * (0.4 + busy) + r.gauss(0, base_cpu * 0.25))
+                mem = s["mem"] * (0.96 + 0.06 * busy) + r.gauss(0, s["mem"] * 0.004)
+                gpu = gmem = 0.0
+                if s["app"] == "llama-server":
+                    gpu = min(100, max(0, 35 + 45 * busy + r.gauss(0, 8)))
+                    gmem = 6.1e9 + 0.3e9 * busy
+                elif s["app"] == "ollama":
+                    gpu = min(100, max(0, 8 + 20 * busy + r.gauss(0, 5)))
+                    gmem = 4.4e9
+                return {"cpu": cpu, "mem": mem, "gpu": gpu, "gpu_mem": gmem}
+
+            def _point(self, t):
+                rows, tot = [], {"cpu": 0, "gpu": 0, "gpu_mem": 0, "mem": 0}
+                for s in SERVICES:
+                    v = self._values(s, t)
+                    rows += [(int(t), metrics.service_key(s), k, x) for k, x in v.items()]
+                    for k in tot:
+                        tot[k] += v[k]
+                sysv = {"cpu": min(100, tot["cpu"] + 9 + self.rng.gauss(0, 2)), "mem": 9.8e9 + tot["mem"] * 0.3,
+                        "gpu": min(100, tot["gpu"]), "gpu_mem": tot["gpu_mem"] + 0.6e9}
+                sysv["mem_pct"] = sysv["mem"] / 34.2e9 * 100
+                rows += [(int(t), "_system", k, x) for k, x in sysv.items()]
+                return rows
+
+            def _llm_row(self, key, t, source="proxy"):
+                r = self.rng
+                slow = r.random() < 0.04  # 가끔 긴 프롬프트 -> P99 를 끌어올림
+                ttft = (r.lognormvariate(math.log(380), 0.35)) * (4.5 if slow else 1)
+                toks = int(r.uniform(80, 520))
+                tps = max(20, r.gauss(47, 3.5))
+                lat = ttft + toks / tps * 1000
+                err = "client disconnected" if r.random() < 0.01 else None
+                return {"ts": t, "key": key, "source": source, "path": "/v1/chat/completions", "status": 200,
+                        "stream": True, "ttft_ms": ttft, "latency_ms": lat, "prompt_tokens": int(r.uniform(200, 3000)),
+                        "completion_tokens": toks, "tps": tps, "error": err}
+
+            def _backfill(self):
+                now = time.time()
+                rows, t = [], now - 86400
+                while t < now:
+                    rows += self._point(t)
+                    t += 60 if t < now - 3600 else self.interval
+                self.store.add_points(rows)
+                t = now - 86400
+                while t < now:
+                    hour = time.localtime(t).tm_hour
+                    gap = 40 if 9 <= hour <= 19 else 260  # 낮 시간에 요청이 많음
+                    t += self.rng.expovariate(1 / gap)
+                    self.store.add_llm(self._llm_row("rag-assistant/llama-server", t))
+                self.tick()
+
+            def tick(self):
+                now = time.time()
+                rows = self._point(now)
+                self.store.add_points(rows)
+                self.system = {k: v for _, key, k, v in rows if key == "_system"}
+                self.system["mem_total"] = 34.2e9
+                self.latest = {}
+                for _, key, k, v in rows:
+                    if key != "_system":
+                        self.latest.setdefault(key, {})[k] = v
+                a = self.gpu_info["adapters"][0]
+                a.update(util=self.system["gpu"], mem_dedicated=self.system["gpu_mem"],
+                         engines={"Compute": round(self.system["gpu"], 1), "3D": 2.1})
+                self.store.add_llm(self._llm_row("rag-assistant/llama-server", now))
+
+            def loop(self):
+                while True:
+                    time.sleep(self.interval)
+                    self.tick()
+
+            def probe(self, key, s):
+                r = self._llm_row(key, time.time(), "probe")
+                self.store.add_llm(r)
+                return r
+
+        return _Demo()
+
+
 class _Wake:
     def __init__(self, sc):
         self.sc = sc
