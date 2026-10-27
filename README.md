@@ -3,6 +3,12 @@
 내 프로젝트가 띄운 **포트 · LLM · 로그**를 한눈에 보는 로컬 대시보드.
 시스템 서비스나 설치된 앱은 빼고, 프로젝트 폴더에서 실행된 프로세스만 보여줍니다.
 
+![Port Deck 메인 화면](docs/overview.png)
+
+![LLM 로그 상세 보기](docs/logs.png)
+
+> 스크린샷은 샘플 데이터로 띄운 데모 모드(`python server.py --demo`)입니다.
+
 ## 기능
 - **포트 목록**: 프로젝트별로 묶어서 앱 이름, 포트, PID, 메모리, CPU, 가동 시간 표시
 - **종류 자동 분류**: LLM / Web / API / DB / MCP / TCP
@@ -27,6 +33,13 @@ python server.py
 → http://127.0.0.1:7070
 
 Mac은 포트 목록을 읽으려면 `sudo`가 필요합니다.
+
+샘플 데이터로 화면만 먼저 보고 싶다면:
+```bash
+python server.py --demo
+```
+
+상세 화면 바로 열기 링크: `http://127.0.0.1:7070/#open=<PID>&tab=logs` (`tab`: `overview` / `logs` / `preview`)
 
 ## 설정 (`config.json`)
 | 키 | 설명 |

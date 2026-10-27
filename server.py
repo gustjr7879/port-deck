@@ -657,6 +657,11 @@ ALLOWED_HOSTS = {f"127.0.0.1:{CFG['port']}", f"localhost:{CFG['port']}"}
 
 
 def main():
+    global SCANNER
+    if "--demo" in sys.argv:
+        from demo import DemoScanner
+        SCANNER = DemoScanner(CFG["scan_interval_sec"])
+        print("DEMO MODE: 샘플 데이터를 보여줍니다")
     threading.Thread(target=SCANNER.loop, daemon=True).start()
     srv = ThreadingHTTPServer((CFG["host"], CFG["port"]), Handler)
     print(f"Port Deck  ->  http://{CFG['host']}:{CFG['port']}  (scan every {CFG['scan_interval_sec']}s)")

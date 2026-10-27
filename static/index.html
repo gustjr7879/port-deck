@@ -603,7 +603,11 @@ $("#refreshBtn").onclick = async () => {
   b.classList.remove("spin"); b.disabled = false;
 };
 
-load();
+// 딥링크: #open=<pid>&tab=logs  (북마크/스크린샷용)
+load().then(() => {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if(h.get("open") && state) openDetail(+h.get("open"), h.get("tab") || "overview");
+});
 setInterval(load, 5000);   // 서버 캐시만 읽음 (스캔은 서버가 주기적으로)
 setInterval(tick, 1000);
 </script>
